@@ -1,5 +1,22 @@
 # Abelian Sandpile Model
 
+How to run:
+
+```
+cargo build --bin abeliansandpile --release
+```
+
+Then 
+```
+time ./target/release/abeliansandpile 200 40000 
+```
+
+(at the moment this takes about 15 minutes)
+
+Which produces the following:
+
+![200x200 40000 sand particles.](./test.png)
+
 ## Sources 
 
 Computations on sandpile models in SAGE
