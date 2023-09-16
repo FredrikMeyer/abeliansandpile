@@ -1,62 +1,10 @@
-use image::{DynamicImage, GenericImage, Rgba};
+mod colors;
+
+use image::{DynamicImage, GenericImage};
 use rand::Rng;
-use std::collections::HashSet;
 use std::env;
 
-#[derive(Debug, Clone, Copy)]
-pub struct Color {
-    pub red: f64,
-    pub green: f64,
-    pub blue: f64,
-}
-
-pub const BLACK: Color = Color {
-    red: 0.,
-    green: 0.,
-    blue: 0.,
-};
-
-pub const GREEN: Color = Color {
-    red: 0.,
-    green: 1.,
-    blue: 0.,
-};
-
-pub const RED: Color = Color {
-    red: 1.,
-    green: 0.,
-    blue: 0.,
-};
-
-pub const BLUE: Color = Color {
-    red: 0.,
-    green: 0.,
-    blue: 1.,
-};
-
-impl Color {
-    pub fn to_rgba(&self) -> Rgba<u8> {
-        Rgba([
-            ((self.red) * 255.) as u8,
-            ((self.green) * 255.) as u8,
-            ((self.blue) * 255.) as u8,
-            0,
-        ])
-    }
-
-    pub fn to_vec(&self) -> Vec<u8> {
-        vec![
-            ((self.red) * 255.) as u8,
-            ((self.green) * 255.) as u8,
-            ((self.blue) * 255.) as u8,
-            255 as u8,
-        ]
-    }
-
-    pub fn new(red: f64, green: f64, blue: f64) -> Color {
-        Color { red, green, blue }
-    }
-}
+use crate::colors::{BLACK, BLUE, GREEN, RED};
 
 fn gen_grid(width: u32, height: u32) -> Vec<Vec<u32>> {
     let mut rng = rand::thread_rng();
@@ -68,24 +16,8 @@ fn gen_grid(width: u32, height: u32) -> Vec<Vec<u32>> {
     grid
 }
 
-fn is_stable(grid: Vec<Vec<u32>>) -> bool {
-    grid.iter().all(|r| r.iter().all(|v| v < &4))
-}
-
-fn add_to_grid(mut grid: &mut Vec<Vec<u32>>, pos_x: usize, pos_y: usize) {
+fn add_to_grid(grid: &mut Vec<Vec<u32>>, pos_x: usize, pos_y: usize) {
     grid[pos_x][pos_y] = grid[pos_x][pos_y] + 1;
-}
-
-fn find_unstable_vertices(grid: Vec<Vec<u32>>) -> HashSet<(usize, usize)> {
-    let mut r = HashSet::new();
-    for (y, row) in grid.iter().enumerate() {
-        for (x, &val) in row.iter().enumerate() {
-            if val >= 4 {
-                r.insert((y, x));
-            }
-        }
-    }
-    r
 }
 
 fn vertex_is_stable(grid: &Vec<Vec<u32>>, vertex: (usize, usize)) -> bool {
@@ -135,10 +67,10 @@ fn find_unstable_vertex(grid: &[Vec<u32>]) -> Option<(usize, usize)> {
 }
 
 fn find_unstable_vertex_2(grid: &Vec<Vec<u32>>) -> Option<(usize, usize)> {
-    let N = grid.len();
-    for y in 0..N {
+    let grid_size = grid.len();
+    for y in 0..grid_size {
         let row = grid.get(y).unwrap();
-        for x in 0..N {
+        for x in 0..grid_size {
             let val = row.get(x).unwrap();
 
             if val >= &(4 as u32) {
@@ -147,14 +79,6 @@ fn find_unstable_vertex_2(grid: &Vec<Vec<u32>>) -> Option<(usize, usize)> {
         }
     }
     return None;
-    // for (y, row) in grid.iter().enumerate() {
-    //     for (x, &val) in row.iter().enumerate() {
-    //         if val >= 4 {
-    //             return Some((y, x));
-    //         }
-    //     }
-    // }
-    // return None;
 }
 
 fn topple_vertex(grid: &mut Vec<Vec<u32>>, pos_x: usize, pos_y: usize) {
@@ -188,20 +112,27 @@ fn run_iteration(grid: &mut Vec<Vec<u32>>) {
     }
 }
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-
-    println!("{:?}", args);
+fn parse_args(args: Vec<String>) -> (usize, u32) {
+    println!("Args: {:?}", args);
     let user_n_option = args.get(1);
 
     let user_n = match user_n_option {
         Some(k) => k,
-        None => panic!("fff"),
+        None => panic!("Usage example: program 200 1000"),
     };
     let m = user_n.parse::<usize>().unwrap();
     let number_of_sands = args.get(2).unwrap().parse::<u32>().unwrap();
 
-    let n: usize = m;
+    (m, number_of_sands)
+}
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let parsed_args = parse_args(args.clone());
+    let n = parsed_args.0;
+    let number_of_sands = parsed_args.1;
+
     let mut image = DynamicImage::new_rgb8(n as u32, n as u32);
     let mut grid: Vec<Vec<u32>> = vec![vec![0; n]; n];
 
@@ -229,21 +160,18 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
     use crate::{
-        add_to_grid, find_unstable_vertices, is_stable, run_iteration, topple_vertex,
-        vertex_is_stable,
+        add_to_grid, find_unstable_vertex, run_iteration, topple_vertex, vertex_is_stable,
     };
 
     #[test]
-    fn test_is_stable() {
+    fn test_vertex_is_stable() {
         let r: Vec<Vec<u32>> = vec![vec![0, 0], vec![0, 0]];
 
-        assert!(is_stable(r));
+        assert!(vertex_is_stable(&r, (0, 0)));
 
         let unstable: Vec<Vec<u32>> = vec![vec![0, 5], vec![0, 0]];
-        assert!(!is_stable(unstable));
+        assert!(!vertex_is_stable(&unstable, (0, 1)));
     }
 
     #[test]
@@ -259,14 +187,9 @@ mod tests {
     fn test_find_unstable_vertices() {
         let r: Vec<Vec<u32>> = vec![vec![0, 0, 4], vec![5, 0, 0], vec![0, 5, 0]];
 
-        let res = find_unstable_vertices(r);
+        let res = find_unstable_vertex(&r);
 
-        let mut pts: HashSet<(usize, usize)> = HashSet::new();
-        pts.insert((0, 2));
-        pts.insert((1, 0));
-        pts.insert((2, 1));
-
-        assert_eq!(pts, res);
+        assert_eq!(Some((0, 2)), res);
     }
 
     #[test]
@@ -288,16 +211,6 @@ mod tests {
 
         run_iteration(&mut r);
 
-        assert_eq!(r, vec![vec![0, 2, 0], vec![2, 2, 2], vec![1, 2, 0]]);
-        assert!(is_stable(r));
-    }
-
-    #[test]
-    fn test_vertex_is_stable() {
-        let mut r: Vec<Vec<u32>> = vec![vec![0, 0, 0], vec![0, 10, 0], vec![0, 0, 0]];
-
-        let res = vertex_is_stable(&r, (1, 1));
-
-        assert!(res);
+        assert_eq!(r, vec![vec![0, 2, 0], vec![2, 2, 2], vec![0, 2, 0]]);
     }
 }
