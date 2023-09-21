@@ -2,11 +2,11 @@ mod colors;
 
 use image::{DynamicImage, GenericImage};
 use rand::Rng;
-use std::env;
+use std::{collections::HashSet, env};
 
 use crate::colors::{BLACK, BLUE, GREEN, RED};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct Point {
     pub x: usize,
     pub y: usize,
@@ -52,6 +52,16 @@ struct Grid {
     height: usize,
 }
 
+struct GridIter<'a> {
+    grid: &'a Grid,
+    current_point: Point,
+}
+
+struct GridIterMut<'a> {
+    grid: &'a mut Grid,
+    current_point: Point,
+}
+
 impl Grid {
     pub fn new(width: usize, height: usize) -> Self {
         Self {
@@ -84,6 +94,68 @@ impl Grid {
         }
 
         result
+    }
+
+    pub fn iter(&self) -> GridIter {
+        GridIter {
+            grid: self,
+            current_point: Point { x: 0, y: 0 },
+        }
+    }
+
+    pub fn iter_mut(&mut self) -> GridIterMut {
+        GridIterMut {
+            grid: self,
+            current_point: Point { x: 0, y: 0 },
+        }
+    }
+}
+
+impl<'a> Iterator for GridIter<'a> {
+    type Item = (Point, &'a u32);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_point.x >= self.grid.width {
+            self.current_point.x = 0;
+            self.current_point.y += 1;
+        }
+
+        if self.current_point.y >= self.grid.height {
+            return None;
+        }
+
+        let value = self.grid.get(self.current_point);
+        let result = (self.current_point, value);
+
+        self.current_point.x += 1;
+
+        Some(result)
+    }
+}
+
+impl<'a> Iterator for GridIterMut<'a> {
+    type Item = (Point, &'a mut u32);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_point.x >= self.grid.width {
+            self.current_point.x = 0;
+            self.current_point.y += 1;
+        }
+
+        if self.current_point.y >= self.grid.height {
+            return None;
+        }
+
+        let value = unsafe {
+            // This is safe because we're ensuring only one mutable reference exists at a time
+            let ptr = self.grid.get(self.current_point) as *const u32 as *mut u32;
+            &mut *ptr
+        };
+        let result = (self.current_point, value);
+
+        self.current_point.x += 1;
+
+        Some(result)
     }
 }
 
@@ -118,16 +190,16 @@ fn vertex_is_stable(grid: &Grid, vertex: Point) -> bool {
     return val < &(4 as u32);
 }
 
-// fn find_unstable_vertex_3(grid: &Grid) -> Option<Point> {
-//     for (y, row) in grid.iter().enumerate() {
-//         for (x, &val) in row.iter().enumerate() {
-//             if val >= 4 {
-//                 return Some((y, x));
-//             }
-//         }
-//     }
-//     return None;
-// }
+fn find_unstable_vertices(grid: &Grid) -> HashSet<Point> {
+    let mut points = HashSet::new();
+
+    for (point, value) in grid.iter() {
+        if value >= &(4 as u32) {
+            points.insert(point);
+        }
+    }
+    points
+}
 
 fn find_unstable_vertex(grid: &Grid) -> Option<Point> {
     let rows = grid.width;
@@ -155,55 +227,66 @@ fn find_unstable_vertex(grid: &Grid) -> Option<Point> {
     None
 }
 
-fn find_unstable_vertex_2(grid: &Vec<Vec<u32>>) -> Option<(usize, usize)> {
-    let grid_size = grid.len();
-    for y in 0..grid_size {
-        let row = grid.get(y).unwrap();
-        for x in 0..grid_size {
-            let val = row.get(x).unwrap();
-
-            if val >= &(4 as u32) {
-                return Some((y, x));
-            }
-        }
-    }
-    return None;
-}
-
-fn topple_vertex(grid: &mut Grid, p: Point) -> bool {
-    let val = grid.get(p);
+fn topple_vertex(grid: &mut Grid, p: &Point, unstable_points: &mut HashSet<Point>) -> bool {
+    let val = grid.get(*p);
     let new_val = val - 4;
+
+    if new_val < 4 {
+        unstable_points.remove(&p);
+    } else {
+        unstable_points.insert(p.clone());
+    }
 
     let pos_x = p.x;
     let pos_y = p.y;
 
     if pos_x >= 1 {
         let pleft = p.left();
-        grid.set(pleft, grid.get(pleft) + 1);
+        let new_val = grid.get(pleft) + 1;
+        grid.set(pleft, new_val);
+        if new_val >= 4 {
+            unstable_points.insert(pleft);
+        }
     }
     if pos_x + 1 < grid.width {
-        grid.set(p.right(), grid.get(p.right()) + 1);
+        let pright = p.right();
+        let new_val = grid.get(pright) + 1;
+        grid.set(pright, new_val);
+        if new_val >= 4 {
+            unstable_points.insert(pright);
+        }
     }
     if pos_y >= 1 {
-        grid.set(p.down(), grid.get(p.down()) + 1);
+        let pdown = p.down();
+        let new_val = grid.get(pdown) + 1;
+        grid.set(pdown, new_val);
+        if new_val >= 4 {
+            unstable_points.insert(pdown);
+        }
     }
     if pos_y + 1 < grid.width {
-        grid.set(p.up(), grid.get(p.up()) + 1);
+        let pup = p.up();
+        let new_val = grid.get(pup) + 1;
+        grid.set(pup, new_val);
+        if new_val >= 4 {
+            unstable_points.insert(pup);
+        }
     }
-    grid.set(p, new_val);
+    grid.set(*p, new_val);
 
     new_val >= 4
 }
 
 fn run_iteration(grid: &mut Grid) {
-    let mut prev_unstable: Option<Point> = find_unstable_vertex(&grid);
+    let mut all_unstables = find_unstable_vertices(&grid);
 
-    while let Some(p) = prev_unstable {
-        let still_unstable = topple_vertex(grid, p);
-
-        if !still_unstable {
-            prev_unstable = find_unstable_vertex(grid)
-        }
+    while let Some(p) = all_unstables
+        .iter()
+        .next()
+        .cloned()
+        .and_then(|p| all_unstables.take(&p))
+    {
+        topple_vertex(grid, &p, &mut all_unstables);
     }
 }
 
@@ -255,14 +338,15 @@ fn main() {
     }
 
     image.save("test.png").unwrap();
-    println!("Hello, world!");
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use crate::{
-        add_to_grid, find_unstable_vertex, run_iteration, topple_vertex, vertex_is_stable, Grid,
-        GridLike, Point,
+        add_to_grid, find_unstable_vertex, find_unstable_vertices, run_iteration, topple_vertex,
+        vertex_is_stable, Grid, GridLike, Point,
     };
 
     #[test]
@@ -280,7 +364,7 @@ mod tests {
 
     #[test]
     fn add_1_to_grid() {
-        let mut r: Vec<Vec<u32>> = vec![vec![0, 1], vec![0, 0]];
+        let r: Vec<Vec<u32>> = vec![vec![0, 1], vec![0, 0]];
         let mut g = Grid::from_vec(r);
 
         add_to_grid(&mut g, Point { x: 0, y: 1 });
@@ -301,15 +385,18 @@ mod tests {
 
     #[test]
     fn test_topple_vertex() {
-        let mut r: Vec<Vec<u32>> = vec![vec![0, 0, 4], vec![0, 5, 0], vec![0, 5, 0]];
+        let r: Vec<Vec<u32>> = vec![vec![0, 0, 4], vec![0, 5, 0], vec![0, 5, 0]];
         let mut g = Grid::from_vec(r);
         let p = Point { x: 1, y: 1 };
-        topple_vertex(&mut g, p);
+        let mut unstables = HashSet::new();
+        unstables.insert(Point { x: 0, y: 2 });
+
+        topple_vertex(&mut g, &p, &mut unstables);
 
         let res = g.to_vec();
         assert_eq!(res[1][1], 1);
 
-        topple_vertex(&mut g, Point { x: 0, y: 2 });
+        topple_vertex(&mut g, &Point { x: 0, y: 2 }, &mut unstables);
 
         let res2 = g.to_vec();
         assert_eq!(res2[0][2], 0);
@@ -317,7 +404,7 @@ mod tests {
 
     #[test]
     fn test_iteration() {
-        let mut r: Vec<Vec<u32>> = vec![vec![0, 0, 0], vec![0, 10, 0], vec![0, 0, 0]];
+        let r: Vec<Vec<u32>> = vec![vec![0, 0, 0], vec![0, 10, 0], vec![0, 0, 0]];
         let mut g = Grid::from_vec(r);
 
         run_iteration(&mut g);
@@ -345,5 +432,21 @@ mod tests {
         assert_eq!(getted_2, &2);
         assert_eq!(getted_3, &3);
         assert_eq!(getted_4, &4);
+    }
+
+    #[test]
+    fn test_find_unstable_vertices_set() {
+        let mut g = Grid::new(10, 10);
+        g.set(Point { x: 0, y: 0 }, 1);
+        g.set(Point { x: 5, y: 5 }, 2);
+        g.set(Point { x: 7, y: 5 }, 3);
+        g.set(Point { x: 5, y: 7 }, 4);
+
+        let mut res = find_unstable_vertices(&g);
+
+        assert_eq!(res.len(), 1);
+        let gg = res.iter().next().cloned().and_then(|p| res.take(&p));
+        assert_eq!(gg.unwrap(), Point { x: 5, y: 7 });
+        assert_eq!(res.len(), 0);
     }
 }
