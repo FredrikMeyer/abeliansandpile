@@ -2,7 +2,8 @@ mod colors;
 
 use image::{DynamicImage, GenericImage};
 use rand::Rng;
-use std::{collections::HashSet, env};
+use rustc_hash::FxHashSet;
+use std::env;
 
 use crate::colors::{BLACK, BLUE, GREEN, RED};
 
@@ -190,8 +191,8 @@ fn vertex_is_stable(grid: &Grid, vertex: Point) -> bool {
     return val < &(4 as u32);
 }
 
-fn find_unstable_vertices(grid: &Grid) -> HashSet<Point> {
-    let mut points = HashSet::new();
+fn find_unstable_vertices(grid: &Grid) -> FxHashSet<Point> {
+    let mut points = FxHashSet::default();
 
     for (point, value) in grid.iter() {
         if value >= &(4 as u32) {
@@ -227,7 +228,7 @@ fn find_unstable_vertex(grid: &Grid) -> Option<Point> {
     None
 }
 
-fn topple_vertex(grid: &mut Grid, p: &Point, unstable_points: &mut HashSet<Point>) -> bool {
+fn topple_vertex(grid: &mut Grid, p: &Point, unstable_points: &mut FxHashSet<Point>) -> bool {
     let val = grid.get(*p);
     let new_val = val - 4;
 
@@ -342,7 +343,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use rustc_hash::FxHashSet;
 
     use crate::{
         add_to_grid, find_unstable_vertex, find_unstable_vertices, run_iteration, topple_vertex,
@@ -388,7 +389,7 @@ mod tests {
         let r: Vec<Vec<u32>> = vec![vec![0, 0, 4], vec![0, 5, 0], vec![0, 5, 0]];
         let mut g = Grid::from_vec(r);
         let p = Point { x: 1, y: 1 };
-        let mut unstables = HashSet::new();
+        let mut unstables = FxHashSet::default();
         unstables.insert(Point { x: 0, y: 2 });
 
         topple_vertex(&mut g, &p, &mut unstables);

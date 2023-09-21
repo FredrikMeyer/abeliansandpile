@@ -2,20 +2,28 @@
 
 How to run:
 
-```
-cargo build --bin abeliansandpile --release
+```shell
+RUSTFLAGS="-C target-cpu=native" cargo build --bin abeliansandpile --release
 ```
 
 Then 
-```
+```shell
 time ./target/release/abeliansandpile 200 40000 
 ```
 
-(at the moment this takes about 15 minutes)
+~~(at the moment this takes about 15 minutes)~~ (takes 1.7 seconds after optimizations)
 
 Which produces the following:
 
 ![200x200 40000 sand particles.](./test.png)
+
+## Optimizations
+
+Found many useful tips in the [Rust Performance Book](https://nnethercote.github.io/perf-book/title-page.html).
+
+Use the `rustc-hash` provided `FxHashSet` instead of the built-in `HashSet`. Gave almost double performance.
+
+Comnpile with `RUSTFLAGS="-C target-cpu=native"`.
 
 ## Sources 
 
