@@ -17,6 +17,10 @@ Which produces the following:
 
 ![200x200 40000 sand particles.](./test.png)
 
+Also this:
+
+![600x600 500000 particles](./600_500000.png)
+
 ## Optimizations
 
 Found many useful tips in the [Rust Performance Book](https://nnethercote.github.io/perf-book/title-page.html).
@@ -59,3 +63,8 @@ https://github.com/jamais-vu/sandpile
 
 Python implementation
 https://github.com/kivyfreakt/sandpile
+
+https://pi.math.cornell.edu/~levine/gallery/
+
+
+https://people.reed.edu/~davidp/sand/program/program.html
