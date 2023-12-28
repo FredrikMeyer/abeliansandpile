@@ -1,5 +1,7 @@
 # Abelian Sandpile Model
 
+[![Rust](https://github.com/FredrikMeyer/abeliansandpile/actions/workflows/rust.yml/badge.svg)](https://github.com/FredrikMeyer/abeliansandpile/actions/workflows/rust.yml)
+
 How to run:
 
 ```shell
