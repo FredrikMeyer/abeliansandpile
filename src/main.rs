@@ -5,7 +5,7 @@ use image::{DynamicImage, GenericImage};
 use point::Point;
 use rand::Rng;
 use rustc_hash::FxHashSet;
-use std::env;
+use std::{cell::UnsafeCell, env};
 
 use crate::colors::{BLACK, BLUE, GREEN, RED};
 
@@ -116,8 +116,8 @@ impl<'a> Iterator for GridIterMut<'a> {
 
         let value = unsafe {
             // This is safe because we're ensuring only one mutable reference exists at a time
-            let ptr = self.grid.get(self.current_point) as *const u32 as *mut u32;
-            &mut *ptr
+            let value = UnsafeCell::new(*self.grid.get(self.current_point));
+            &mut *value.get()
         };
         let result = (self.current_point, value);
 
