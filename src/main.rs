@@ -1,46 +1,13 @@
 mod colors;
+pub mod point;
 
 use image::{DynamicImage, GenericImage};
+use point::Point;
 use rand::Rng;
 use rustc_hash::FxHashSet;
 use std::env;
 
 use crate::colors::{BLACK, BLUE, GREEN, RED};
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct Point {
-    pub x: usize,
-    pub y: usize,
-}
-
-impl Point {
-    fn up(&self) -> Point {
-        Point {
-            x: self.x,
-            y: self.y + 1,
-        }
-    }
-    fn down(&self) -> Point {
-        Point {
-            x: self.x,
-            y: self.y - 1,
-        }
-    }
-
-    fn left(&self) -> Point {
-        Point {
-            x: self.x - 1,
-            y: self.y,
-        }
-    }
-
-    fn right(&self) -> Point {
-        Point {
-            x: self.x + 1,
-            y: self.y,
-        }
-    }
-}
 
 trait GridLike {
     fn get(&self, p: Point) -> &u32;
