@@ -153,11 +153,6 @@ fn add_to_grid(grid: &mut Grid, p: Point) {
     grid.set(p, grid.get(p) + 1);
 }
 
-fn vertex_is_stable(grid: &Grid, vertex: Point) -> bool {
-    let val = grid.get(vertex);
-    return val < &(4 as u32);
-}
-
 fn find_unstable_vertices(grid: &Grid) -> FxHashSet<Point> {
     let mut points = FxHashSet::default();
 
@@ -322,19 +317,6 @@ mod tests {
         add_to_grid, find_unstable_vertex, find_unstable_vertices, run_iteration, topple_vertex,
         vertex_is_stable, Grid, GridLike, Point,
     };
-
-    #[test]
-    fn test_vertex_is_stable() {
-        let r: Vec<Vec<u32>> = vec![vec![0, 0], vec![0, 0]];
-
-        let g = Grid::from_vec(r);
-
-        assert!(vertex_is_stable(&g, Point { x: 0, y: 0 }));
-
-        let unstable: Vec<Vec<u32>> = vec![vec![0, 5], vec![0, 0]];
-        let unstable_grid = Grid::from_vec(unstable);
-        assert!(!vertex_is_stable(&unstable_grid, Point { x: 0, y: 1 }));
-    }
 
     #[test]
     fn add_1_to_grid() {
