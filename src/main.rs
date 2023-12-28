@@ -319,7 +319,13 @@ fn main() {
         x: (n / 2) - 1,
         y: (n / 2) - 1,
     };
+
+    // let pt2 = Point {
+    //     x: 2 * (n / 3) - 1,
+    //     y: (n / 2) - 1,
+    // };
     // println!("Midpoint {}", midpoint);
+    // grid.set(pt2, number_of_sands);
     grid.set(midpoint, number_of_sands);
 
     run_iteration(&mut grid);
