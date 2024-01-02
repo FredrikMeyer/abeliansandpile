@@ -315,7 +315,7 @@ mod tests {
 
     use crate::{
         add_to_grid, find_unstable_vertex, find_unstable_vertices, run_iteration, topple_vertex,
-        vertex_is_stable, Grid, GridLike, Point,
+        Grid, GridLike, Point,
     };
 
     #[test]
