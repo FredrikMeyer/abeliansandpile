@@ -1,143 +1,15 @@
 mod colors;
+mod grid;
 pub mod point;
 
+use grid::{Grid, GridLike};
 use image::{DynamicImage, GenericImage};
 use point::Point;
 use rand::Rng;
 use rustc_hash::FxHashSet;
-use std::{cell::UnsafeCell, env};
+use std::env;
 
 use crate::colors::{BLACK, BLUE, GREEN, RED};
-
-trait GridLike {
-    fn get(&self, p: Point) -> &u32;
-    fn set(&mut self, p: Point, val: u32);
-}
-
-struct Grid {
-    array: Vec<u32>,
-    width: usize,
-    height: usize,
-}
-
-struct GridIter<'a> {
-    grid: &'a Grid,
-    current_point: Point,
-}
-
-struct GridIterMut<'a> {
-    grid: &'a mut Grid,
-    current_point: Point,
-}
-
-impl Grid {
-    pub fn new(width: usize, height: usize) -> Self {
-        Self {
-            array: [0].repeat(width * height),
-            width,
-            height,
-        }
-    }
-
-    pub fn from_vec(vec: Vec<Vec<u32>>) -> Grid {
-        let height = vec.len();
-        let width = vec[0].len();
-
-        let array: Vec<u32> = vec.into_iter().flatten().collect();
-
-        Grid {
-            array,
-            width,
-            height,
-        }
-    }
-
-    pub fn to_vec(&self) -> Vec<Vec<u32>> {
-        let mut result = Vec::with_capacity(self.height);
-
-        for i in 0..self.height {
-            let start_index = i * self.width;
-            let end_index = start_index + self.width;
-            result.push(self.array[start_index..end_index].to_vec());
-        }
-
-        result
-    }
-
-    pub fn iter(&self) -> GridIter {
-        GridIter {
-            grid: self,
-            current_point: Point { x: 0, y: 0 },
-        }
-    }
-
-    pub fn iter_mut(&mut self) -> GridIterMut {
-        GridIterMut {
-            grid: self,
-            current_point: Point { x: 0, y: 0 },
-        }
-    }
-}
-
-impl<'a> Iterator for GridIter<'a> {
-    type Item = (Point, &'a u32);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current_point.x >= self.grid.width {
-            self.current_point.x = 0;
-            self.current_point.y += 1;
-        }
-
-        if self.current_point.y >= self.grid.height {
-            return None;
-        }
-
-        let value = self.grid.get(self.current_point);
-        let result = (self.current_point, value);
-
-        self.current_point.x += 1;
-
-        Some(result)
-    }
-}
-
-impl<'a> Iterator for GridIterMut<'a> {
-    type Item = (Point, &'a mut u32);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current_point.x >= self.grid.width {
-            self.current_point.x = 0;
-            self.current_point.y += 1;
-        }
-
-        if self.current_point.y >= self.grid.height {
-            return None;
-        }
-
-        let value = unsafe {
-            // This is safe because we're ensuring only one mutable reference exists at a time
-            let value = UnsafeCell::new(*self.grid.get(self.current_point));
-            &mut *value.get()
-        };
-        let result = (self.current_point, value);
-
-        self.current_point.x += 1;
-
-        Some(result)
-    }
-}
-
-impl GridLike for Grid {
-    fn get(&self, p: Point) -> &u32 {
-        self.array
-            .get(p.x * self.width + p.y)
-            .unwrap_or(&(0 as u32))
-    }
-
-    fn set(&mut self, p: Point, val: u32) {
-        self.array[p.x * self.width + p.y] = val
-    }
-}
 
 fn gen_grid(width: u32, height: u32) -> Vec<Vec<u32>> {
     let mut rng = rand::thread_rng();
@@ -153,6 +25,7 @@ fn add_to_grid(grid: &mut Grid, p: Point) {
     grid.set(p, grid.get(p) + 1);
 }
 
+/// Find all unstable vertices.
 fn find_unstable_vertices(grid: &Grid) -> FxHashSet<Point> {
     let mut points = FxHashSet::default();
 
@@ -219,6 +92,7 @@ fn topple_vertex(grid: &mut Grid, p: &Point, unstable_points: &mut FxHashSet<Poi
             unstable_points.insert(pright);
         }
     }
+
     if pos_y >= 1 {
         let pdown = p.down();
         let new_val = grid.get(pdown) + 1;
@@ -267,30 +141,9 @@ fn parse_args(args: Vec<String>) -> (usize, u32) {
     (m, number_of_sands)
 }
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-
-    let parsed_args = parse_args(args.clone());
-    let n = parsed_args.0;
-    let number_of_sands = parsed_args.1;
-
+fn write_to_image(grid: &Grid) {
+    let n = grid.width;
     let mut image = DynamicImage::new_rgb8(n as u32, n as u32);
-    let mut grid: Grid = Grid::new(n, n);
-
-    let midpoint = Point {
-        x: (n / 2) - 1,
-        y: (n / 2) - 1,
-    };
-
-    // let pt2 = Point {
-    //     x: 2 * (n / 3) - 1,
-    //     y: (n / 2) - 1,
-    // };
-    // println!("Midpoint {}", midpoint);
-    // grid.set(pt2, number_of_sands);
-    grid.set(midpoint, number_of_sands);
-
-    run_iteration(&mut grid);
 
     let as_vec = grid.to_vec();
     for (y, row) in as_vec.iter().enumerate() {
@@ -307,6 +160,35 @@ fn main() {
     }
 
     image.save("test.png").unwrap();
+}
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let parsed_args = parse_args(args.clone());
+    let n = parsed_args.0;
+    let number_of_sands = parsed_args.1;
+
+    let mut grid: Grid = Grid::new(n, n);
+
+    let midpoint = Point {
+        x: (n / 2) - 1,
+        y: (n / 2) - 1,
+    };
+
+    /*
+    let pt2 = Point {
+        x: 2 * (n / 3) - 1,
+        y: (n / 2) - 1,
+    };
+    println!("Midpoint {}", midpoint);
+    grid.set(pt2, number_of_sands);
+    */
+    grid.set(midpoint, number_of_sands);
+
+    run_iteration(&mut grid);
+
+    write_to_image(&grid);
 }
 
 #[cfg(test)]
