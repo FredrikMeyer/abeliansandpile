@@ -63,9 +63,18 @@ fn find_unstable_vertex(grid: &Grid) -> Option<Point> {
     None
 }
 
+fn maybe_topple(p: Point, grid: &mut Grid, max_sands: u32, unstable_points: &mut FxHashSet<Point>) {
+    let new_val = grid.get(p.clone()) + 1;
+    grid.set(p.clone(), new_val);
+    if new_val >= max_sands {
+        unstable_points.insert(p);
+    }
+}
+
 fn topple_vertex(grid: &mut Grid, p: &Point, unstable_points: &mut FxHashSet<Point>) -> bool {
     let val = grid.get(*p);
-    let new_val = val - 4;
+    let max_sands = 4;
+    let new_val = val - max_sands;
 
     if new_val < 4 {
         unstable_points.remove(&p);
@@ -78,40 +87,24 @@ fn topple_vertex(grid: &mut Grid, p: &Point, unstable_points: &mut FxHashSet<Poi
 
     if pos_x >= 1 {
         let pleft = p.left();
-        let new_val = grid.get(pleft) + 1;
-        grid.set(pleft, new_val);
-        if new_val >= 4 {
-            unstable_points.insert(pleft);
-        }
+        maybe_topple(pleft, grid, max_sands, unstable_points);
     }
     if pos_x + 1 < grid.width {
         let pright = p.right();
-        let new_val = grid.get(pright) + 1;
-        grid.set(pright, new_val);
-        if new_val >= 4 {
-            unstable_points.insert(pright);
-        }
+        maybe_topple(pright, grid, max_sands, unstable_points);
     }
 
     if pos_y >= 1 {
         let pdown = p.down();
-        let new_val = grid.get(pdown) + 1;
-        grid.set(pdown, new_val);
-        if new_val >= 4 {
-            unstable_points.insert(pdown);
-        }
+        maybe_topple(pdown, grid, max_sands, unstable_points);
     }
     if pos_y + 1 < grid.width {
         let pup = p.up();
-        let new_val = grid.get(pup) + 1;
-        grid.set(pup, new_val);
-        if new_val >= 4 {
-            unstable_points.insert(pup);
-        }
+        maybe_topple(pup, grid, max_sands, unstable_points);
     }
     grid.set(*p, new_val);
 
-    new_val >= 4
+    new_val >= max_sands
 }
 
 fn run_iteration(grid: &mut Grid) {
@@ -146,8 +139,8 @@ fn write_to_image(grid: &Grid) {
     let mut image = DynamicImage::new_rgb8(n as u32, n as u32);
 
     let as_vec = grid.to_vec();
-    for (y, row) in as_vec.iter().enumerate() {
-        for (x, &val) in row.iter().enumerate() {
+    for (x, row) in as_vec.iter().enumerate() {
+        for (y, &val) in row.iter().enumerate() {
             // println!("{}, {}", x, y);
             match &val {
                 0 => image.put_pixel(x as u32, y as u32, RED.to_rgba()),
@@ -170,20 +163,33 @@ fn main() {
     let number_of_sands = parsed_args.1;
 
     let mut grid: Grid = Grid::new(n, n);
+    // let mut grid = Grid::from_vec(gen_grid(n as u32, n as u32));
 
     let midpoint = Point {
         x: (n / 2) - 1,
         y: (n / 2) - 1,
     };
 
-    /*
-    let pt2 = Point {
-        x: 2 * (n / 3) - 1,
-        y: (n / 2) - 1,
-    };
-    println!("Midpoint {}", midpoint);
-    grid.set(pt2, number_of_sands);
-    */
+    add_to_grid(&mut grid, midpoint);
+
+    // let pt2 = Point {
+    //     x: 2 * (n / 3) - 1,
+    //     y: (n / 2) - 1,
+    // };
+
+    // let pt3 = Point {
+    //     x: (n / 2) - 1,
+    //     y: (n / 3) - 1,
+    // };
+
+    // let pt4 = Point {
+    //     x: (n / 2) - 1,
+    //     y: 2 * (n / 3) - 1,
+    // };
+    // println!("Midpoint {}", midpoint);
+    // grid.set(pt2, number_of_sands);
+    // grid.set(pt4, number_of_sands);
+    // grid.set(pt3, number_of_sands);
     grid.set(midpoint, number_of_sands);
 
     run_iteration(&mut grid);
