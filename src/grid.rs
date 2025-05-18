@@ -57,6 +57,11 @@ impl Grid {
         result
     }
 
+    /// Assumes grid is square
+    pub fn size(&self) -> usize {
+        self.width
+    }
+
     pub fn iter(&self) -> GridIter {
         GridIter {
             grid: self,
@@ -69,6 +74,23 @@ impl Grid {
             grid: self,
             current_point: Point { x: 0, y: 0 },
         }
+    }
+
+    pub fn to_string(&self) -> String {
+        let as_vec = self.to_vec();
+
+        let res = as_vec
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .map(|&num| num.to_string())
+                    .collect::<Vec<String>>()
+                    .join(",")
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
+
+        return res;
     }
 }
 
@@ -129,5 +151,21 @@ impl GridLike for Grid {
 
     fn set(&mut self, p: Point, val: u32) {
         self.array[p.x * self.width + p.y] = val
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::Grid;
+
+    #[test]
+    fn grid_to_string() {
+        let r: Vec<Vec<u32>> = vec![vec![0, 1], vec![0, 0]];
+        let g = Grid::from_vec(r);
+
+        let res = g.to_string();
+
+        assert_eq!(res, "0,1\n0,0");
     }
 }

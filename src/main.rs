@@ -7,22 +7,26 @@ use image::{DynamicImage, GenericImage};
 use point::Point;
 use rand::Rng;
 use rustc_hash::FxHashSet;
-use std::env;
+use std::{env, fs::File, io::Write};
 
 use crate::colors::{BLACK, BLUE, GREEN, RED};
 
 fn gen_grid(width: u32, height: u32) -> Vec<Vec<u32>> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let grid: Vec<Vec<u32>> = (0..width)
-        .map(|_| (0..height).map(|_| (rng.gen_range(0..5) as u32)).collect())
+        .map(|_| {
+            (0..height)
+                .map(|_| (rng.random_range(0..5) as u32))
+                .collect()
+        })
         .collect();
 
     grid
 }
 
-fn add_to_grid(grid: &mut Grid, p: Point) {
-    grid.set(p, grid.get(p) + 1);
+fn add_to_grid(grid: &mut Grid, p: Point, amount: u32) {
+    grid.set(p, grid.get(p) + amount);
 }
 
 /// Find all unstable vertices.
@@ -63,7 +67,8 @@ fn find_unstable_vertex(grid: &Grid) -> Option<Point> {
     None
 }
 
-fn maybe_topple(p: Point, grid: &mut Grid, max_sands: u32, unstable_points: &mut FxHashSet<Point>) {
+fn maybe_topple(p: Point, grid: &mut Grid, unstable_points: &mut FxHashSet<Point>) {
+    let max_sands = 4;
     let new_val = grid.get(p.clone()) + 1;
     grid.set(p.clone(), new_val);
     if new_val >= max_sands {
@@ -87,20 +92,20 @@ fn topple_vertex(grid: &mut Grid, p: &Point, unstable_points: &mut FxHashSet<Poi
 
     if pos_x >= 1 {
         let pleft = p.left();
-        maybe_topple(pleft, grid, max_sands, unstable_points);
+        maybe_topple(pleft, grid, unstable_points);
     }
     if pos_x + 1 < grid.width {
         let pright = p.right();
-        maybe_topple(pright, grid, max_sands, unstable_points);
+        maybe_topple(pright, grid, unstable_points);
     }
 
     if pos_y >= 1 {
         let pdown = p.down();
-        maybe_topple(pdown, grid, max_sands, unstable_points);
+        maybe_topple(pdown, grid, unstable_points);
     }
     if pos_y + 1 < grid.width {
         let pup = p.up();
-        maybe_topple(pup, grid, max_sands, unstable_points);
+        maybe_topple(pup, grid, unstable_points);
     }
     grid.set(*p, new_val);
 
@@ -120,7 +125,7 @@ fn run_iteration(grid: &mut Grid) {
     }
 }
 
-fn parse_args(args: Vec<String>) -> (usize, u32) {
+fn parse_args(args: Vec<String>) -> (usize, u32, Option<String>) {
     println!("Args: {:?}", args);
     let user_n_option = args.get(1);
 
@@ -131,7 +136,10 @@ fn parse_args(args: Vec<String>) -> (usize, u32) {
     let m = user_n.parse::<usize>().unwrap();
     let number_of_sands = args.get(2).unwrap().parse::<u32>().unwrap();
 
-    (m, number_of_sands)
+    if let Some(v) = args.get(2) {
+        return (m, number_of_sands, Some(v.clone()));
+    }
+    (m, number_of_sands, None)
 }
 
 fn write_to_image(grid: &Grid) {
@@ -153,6 +161,47 @@ fn write_to_image(grid: &Grid) {
     }
 
     image.save("test.png").unwrap();
+    image.save("test.tiff").unwrap();
+}
+
+fn mirror_along_diagonal(grid: &Grid) -> Grid {
+    let n = grid.size();
+    let mut new_grid = Grid::new(n / 2, n / 2);
+
+    for i in 0..(n / 2) {
+        for j in ((n / 2) + i)..n {
+            let val = grid.get(Point { x: i, y: j });
+            new_grid.set(
+                Point {
+                    x: i,
+                    y: j - (n / 2),
+                },
+                *val,
+            );
+            new_grid.set(
+                Point {
+                    x: j - (n / 2),
+                    y: i,
+                },
+                *val,
+            );
+        }
+    }
+
+    new_grid
+}
+
+fn write_to_csv(grid: &Grid) {
+    let grid_as_string = grid.to_string();
+
+    let res = File::create("output.csv")
+        .unwrap()
+        .write_all(grid_as_string.as_bytes());
+
+    match res {
+        Ok(_) => return,
+        Err(_) => println!("Error saving file."),
+    }
 }
 
 fn main() {
@@ -170,7 +219,11 @@ fn main() {
         y: (n / 2) - 1,
     };
 
-    add_to_grid(&mut grid, midpoint);
+    add_to_grid(&mut grid, midpoint, number_of_sands);
+
+    // for i in 0..n {
+    //     add_to_grid(&mut grid, Point { x: i, y: i }, number_of_sands);
+    // }
 
     // let pt2 = Point {
     //     x: 2 * (n / 3) - 1,
@@ -190,11 +243,17 @@ fn main() {
     // grid.set(pt2, number_of_sands);
     // grid.set(pt4, number_of_sands);
     // grid.set(pt3, number_of_sands);
-    grid.set(midpoint, number_of_sands);
 
     run_iteration(&mut grid);
 
-    write_to_image(&grid);
+    if parsed_args.2.is_some() {
+        let new_grid = mirror_along_diagonal(&mut grid);
+        write_to_image(&new_grid);
+        write_to_csv(&new_grid);
+    } else {
+        write_to_image(&grid);
+        write_to_csv(&grid);
+    }
 }
 
 #[cfg(test)]
@@ -211,7 +270,7 @@ mod tests {
         let r: Vec<Vec<u32>> = vec![vec![0, 1], vec![0, 0]];
         let mut g = Grid::from_vec(r);
 
-        add_to_grid(&mut g, Point { x: 0, y: 1 });
+        add_to_grid(&mut g, Point { x: 0, y: 1 }, 1);
 
         let res = g.to_vec();
         assert_eq!(res[0][1], 2);
