@@ -125,21 +125,25 @@ fn run_iteration(grid: &mut Grid) {
     }
 }
 
-fn parse_args(args: Vec<String>) -> (usize, u32, Option<String>) {
+fn parse_args(args: Vec<String>) -> (usize, u32, Option<String>, Option<String>) {
     println!("Args: {:?}", args);
     let user_n_option = args.get(1);
 
     let user_n = match user_n_option {
         Some(k) => k,
-        None => panic!("Usage example: program 200 1000"),
+        None => panic!("Usage example: program 200 1000 [format]"),
     };
     let m = user_n.parse::<usize>().unwrap();
-    let number_of_sands = args.get(2).unwrap().parse::<u32>().unwrap();
 
-    if let Some(v) = args.get(2) {
-        return (m, number_of_sands, Some(v.clone()));
-    }
-    (m, number_of_sands, None)
+    let number_of_sands = match args.get(2) {
+        Some(n) => n.parse::<u32>().unwrap(),
+        None => panic!("Usage example: program 200 1000 [format]"),
+    };
+
+    let mirror_option = if args.len() > 3 { Some(args[3].clone()) } else { None };
+    let format_option = if args.len() > 4 { Some(args[4].clone()) } else { None };
+
+    (m, number_of_sands, mirror_option, format_option)
 }
 
 fn write_to_image(grid: &Grid) {
@@ -204,12 +208,72 @@ fn write_to_csv(grid: &Grid) {
     }
 }
 
+fn write_to_html(grid: &Grid) {
+    let mut html = String::from("<!DOCTYPE html>\n<html>\n<head>\n");
+    html.push_str("<title>Abelian Sandpile Visualization</title>\n");
+    html.push_str("<style>\n");
+    html.push_str("table { border-collapse: collapse; }\n");
+    html.push_str("td { width: 20px; height: 20px; border: 1px solid #ddd; }\n");
+    html.push_str(".color-0 { background-color: #FF0000; } /* RED */\n");
+    html.push_str(".color-1 { background-color: #00FF00; } /* GREEN */\n");
+    html.push_str(".color-2 { background-color: #0000FF; } /* BLUE */\n");
+    html.push_str(".color-3 { background-color: #000000; } /* BLACK */\n");
+    html.push_str("</style>\n");
+    html.push_str("<script>\n");
+    html.push_str("function changeColor(colorClass, newColor) {\n");
+    html.push_str("  const elements = document.getElementsByClassName(colorClass);\n");
+    html.push_str("  for (let i = 0; i < elements.length; i++) {\n");
+    html.push_str("    elements[i].style.backgroundColor = newColor;\n");
+    html.push_str("  }\n");
+    html.push_str("}\n");
+    html.push_str("</script>\n");
+    html.push_str("</head>\n<body>\n");
+
+    // Add color pickers
+    html.push_str("<div style='margin-bottom: 20px;'>\n");
+    html.push_str("  <label>Value 0 (Red): </label>\n");
+    html.push_str("  <input type='color' value='#FF0000' onchange='changeColor(\"color-0\", this.value)'><br>\n");
+    html.push_str("  <label>Value 1 (Green): </label>\n");
+    html.push_str("  <input type='color' value='#00FF00' onchange='changeColor(\"color-1\", this.value)'><br>\n");
+    html.push_str("  <label>Value 2 (Blue): </label>\n");
+    html.push_str("  <input type='color' value='#0000FF' onchange='changeColor(\"color-2\", this.value)'><br>\n");
+    html.push_str("  <label>Value 3 (Black): </label>\n");
+    html.push_str("  <input type='color' value='#000000' onchange='changeColor(\"color-3\", this.value)'><br>\n");
+    html.push_str("</div>\n");
+
+    // Create table
+    html.push_str("<table>\n");
+
+    let grid_data = grid.to_vec();
+    for row in grid_data {
+        html.push_str("  <tr>\n");
+        for cell in row {
+            html.push_str(&format!("    <td class='color-{}'></td>\n", cell));
+        }
+        html.push_str("  </tr>\n");
+    }
+
+    html.push_str("</table>\n");
+    html.push_str("</body>\n</html>");
+
+    let res = File::create("output.html")
+        .unwrap()
+        .write_all(html.as_bytes());
+
+    match res {
+        Ok(_) => return,
+        Err(_) => println!("Error saving HTML file."),
+    }
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
 
     let parsed_args = parse_args(args.clone());
     let n = parsed_args.0;
     let number_of_sands = parsed_args.1;
+    let mirror_option = parsed_args.2;
+    let format_option = parsed_args.3;
 
     let mut grid: Grid = Grid::new(n, n);
     // let mut grid = Grid::from_vec(gen_grid(n as u32, n as u32));
@@ -246,13 +310,39 @@ fn main() {
 
     run_iteration(&mut grid);
 
-    if parsed_args.2.is_some() {
-        let new_grid = mirror_along_diagonal(&mut grid);
-        write_to_image(&new_grid);
-        write_to_csv(&new_grid);
+    let output_grid = if mirror_option.is_some() {
+        mirror_along_diagonal(&mut grid)
     } else {
-        write_to_image(&grid);
-        write_to_csv(&grid);
+        grid
+    };
+
+    // Determine which output formats to use
+    match format_option.as_deref() {
+        Some("csv") => {
+            write_to_csv(&output_grid);
+            println!("Output written to output.csv");
+        },
+        Some("html") => {
+            write_to_html(&output_grid);
+            println!("Output written to output.html");
+        },
+        Some("png") => {
+            write_to_image(&output_grid);
+            println!("Output written to test.png");
+        },
+        Some("all") => {
+            write_to_csv(&output_grid);
+            write_to_html(&output_grid);
+            write_to_image(&output_grid);
+            println!("Output written to output.csv, output.html, and test.png");
+        },
+        _ => {
+            // Default: output to all formats
+            write_to_csv(&output_grid);
+            write_to_html(&output_grid);
+            write_to_image(&output_grid);
+            println!("Output written to output.csv, output.html, and test.png");
+        }
     }
 }
 
