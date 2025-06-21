@@ -10,7 +10,25 @@ RUSTFLAGS="-C target-cpu=native" cargo build --bin abeliansandpile --release
 
 Then 
 ```shell
-time ./target/release/abeliansandpile 200 40000 
+time ./target/release/abeliansandpile 200 40000 [mirror] [format]
+```
+
+Where:
+- `200` is the grid size
+- `40000` is the number of sand particles
+- `[mirror]` (optional) is any value to enable mirroring along the diagonal
+- `[format]` (optional) is the output format: "csv", "html", "png", or "all" (default is "all")
+
+Examples:
+```shell
+# Output to all formats (CSV, HTML, PNG)
+./target/release/abeliansandpile 200 40000
+
+# Output only to HTML format
+./target/release/abeliansandpile 200 40000 mirror html
+
+# Output only to CSV format
+./target/release/abeliansandpile 200 40000 none csv
 ```
 
 ~~(at the moment this takes about 15 minutes)~~ (takes 1.7 seconds after optimizations)
