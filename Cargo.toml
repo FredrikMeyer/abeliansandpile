@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 image = "0.25.10"
-rand = "0.9.3"
+rand = "0.10.1"
 rustc-hash = "2.1.2"
 
 [[bin]]
