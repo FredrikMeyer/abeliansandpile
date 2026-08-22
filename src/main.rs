@@ -5,7 +5,7 @@ pub mod point;
 use grid::{Grid, GridLike};
 use image::{DynamicImage, GenericImage};
 use point::Point;
-use rand::Rng;
+use rand::RngExt;
 use rustc_hash::FxHashSet;
 use std::{env, fs::File, io::Write};
 
@@ -15,11 +15,7 @@ fn gen_grid(width: u32, height: u32) -> Vec<Vec<u32>> {
     let mut rng = rand::rng();
 
     let grid: Vec<Vec<u32>> = (0..width)
-        .map(|_| {
-            (0..height)
-                .map(|_| (rng.random_range(0..5) as u32))
-                .collect()
-        })
+        .map(|_| (0..height).map(|_| rng.random_range(0..5 as u32)).collect())
         .collect();
 
     grid
@@ -140,8 +136,16 @@ fn parse_args(args: Vec<String>) -> (usize, u32, Option<String>, Option<String>)
         None => panic!("Usage example: program 200 1000 [format]"),
     };
 
-    let mirror_option = if args.len() > 3 { Some(args[3].clone()) } else { None };
-    let format_option = if args.len() > 4 { Some(args[4].clone()) } else { None };
+    let mirror_option = if args.len() > 3 {
+        Some(args[3].clone())
+    } else {
+        None
+    };
+    let format_option = if args.len() > 4 {
+        Some(args[4].clone())
+    } else {
+        None
+    };
 
     (m, number_of_sands, mirror_option, format_option)
 }
@@ -321,21 +325,21 @@ fn main() {
         Some("csv") => {
             write_to_csv(&output_grid);
             println!("Output written to output.csv");
-        },
+        }
         Some("html") => {
             write_to_html(&output_grid);
             println!("Output written to output.html");
-        },
+        }
         Some("png") => {
             write_to_image(&output_grid);
             println!("Output written to test.png");
-        },
+        }
         Some("all") => {
             write_to_csv(&output_grid);
             write_to_html(&output_grid);
             write_to_image(&output_grid);
             println!("Output written to output.csv, output.html, and test.png");
-        },
+        }
         _ => {
             // Default: output to all formats
             write_to_csv(&output_grid);

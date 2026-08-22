@@ -62,14 +62,14 @@ impl Grid {
         self.width
     }
 
-    pub fn iter(&self) -> GridIter {
+    pub fn iter(&self) -> GridIter<'_> {
         GridIter {
             grid: self,
             current_point: Point { x: 0, y: 0 },
         }
     }
 
-    pub fn iter_mut(&mut self) -> GridIterMut {
+    pub fn iter_mut(&mut self) -> GridIterMut<'_> {
         GridIterMut {
             grid: self,
             current_point: Point { x: 0, y: 0 },

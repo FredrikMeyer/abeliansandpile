@@ -2,7 +2,11 @@
 
 [![Rust](https://github.com/FredrikMeyer/abeliansandpile/actions/workflows/rust.yml/badge.svg)](https://github.com/FredrikMeyer/abeliansandpile/actions/workflows/rust.yml)
 
-How to run:
+## Rust toolchain
+
+This repo pins Rust with `rust-toolchain.toml`. If you use `rustup`, Cargo commands run from this directory will automatically use Rust 1.98.0 and install the pinned toolchain if needed.
+
+## How to run
 
 ```shell
 RUSTFLAGS="-C target-cpu=native" cargo build --bin abeliansandpile --release
